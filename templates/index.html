@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shelf Scanner - AI Book Discovery</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0f0a1a; color: #e8e0ff; min-height: 100vh; }
+        
+        header { background: linear-gradient(135deg, #1a0a2e, #2d1b4e); padding: 1.5rem 2rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #3d2b6e; }
+        header h1 { font-size: 2rem; color: #c084fc; }
+        header p { color: #a78bca; font-size: 0.9rem; }
+
+        .nav-tabs { display: flex; gap: 1rem; }
+        .nav-tab { background: none; border: none; color: #a78bca; font-size: 0.95rem; cursor: pointer; padding: 0.5rem 1rem; border-radius: 8px; transition: all 0.2s; }
+        .nav-tab.active { background: #3d2b6e; color: #c084fc; }
+        .nav-tab:hover { background: #2d1b4e; }
+
+        .page { display: none; }
+        .page.active { display: block; }
+
+        .main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+        .upload-section { background: #1a0f2e; border: 2px dashed #6d28d9; border-radius: 20px; padding: 3rem; text-align: center; margin-bottom: 2rem; cursor: pointer; transition: all 0.3s; }
+        .upload-section:hover { border-color: #c084fc; background: #1f1238; }
+        .upload-section h2 { color: #c084fc; margin-bottom: 1rem; font-size: 1.5rem; }
+        .upload-section p { color: #9d8baa; margin-bottom: 1.5rem; }
+        .upload-icon { font-size: 4rem; margin-bottom: 1rem; }
+
+        .btn { padding: 0.8rem 2rem; border: none; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: linear-gradient(135deg, #7c3aed, #c084fc); color: white; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(124,58,237,0.4); }
+        .btn-secondary { background: #2d1b4e; color: #c084fc; border: 1px solid #6d28d9; }
+        .btn-secondary:hover { background: #3d2b6e; }
+        .btn-wishlist { background: #2d1b4e; color: #f472b6; border: 1px solid #db2777; font-size: 0.85rem; padding: 0.4rem 0.8rem; border-radius: 8px; }
+        .btn-wishlist:hover { background: #3d1b3e; }
+        .btn-wishlist.added { background: #3d1b3e; color: #f9a8d4; }
+        .btn-remove { background: #2d1a1a; color: #f87171; border: 1px solid #dc2626; font-size: 0.8rem; padding: 0.3rem 0.7rem; border-radius: 6px; cursor: pointer; }
+        .btn-remove:hover { background: #3d1a1a; }
+
+        #imagePreview { max-width: 100%; max-height: 400px; border-radius: 12px; margin: 1rem auto; display: none; }
+        
+        .scan-btn-container { text-align: center; margin: 1.5rem 0; }
+
+        .loading { text-align: center; padding: 3rem; display: none; }
+        .spinner { width: 60px; height: 60px; border: 4px solid #2d1b4e; border-top: 4px solid #c084fc; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading p { color: #a78bca; font-size: 1.1rem; }
+
+        .results { display: none; }
+        .results-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        .results-header h2 { color: #c084fc; font-size: 1.5rem; }
+        .badge { background: #7c3aed; color: white; padding: 0.3rem 0.8rem; border-radius: 999px; font-size: 0.85rem; }
+
+        .recommendation-box { background: linear-gradient(135deg, #1f1238, #2d1b4e); border: 1px solid #6d28d9; border-radius: 16px; padding: 1.5rem; margin-bottom: 2rem; }
+        .recommendation-box h3 { color: #c084fc; margin-bottom: 0.8rem; }
+        .recommendation-box p { color: #c4b5d4; line-height: 1.6; }
+
+        .books-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; }
+        
+        .book-card { background: #1a0f2e; border: 1px solid #3d2b6e; border-radius: 16px; padding: 1.5rem; transition: all 0.3s; position: relative; }
+        .book-card:hover { transform: translateY(-4px); border-color: #7c3aed; box-shadow: 0 12px 30px rgba(124,58,237,0.2); }
+        .book-card.recommended { border-color: #c084fc; }
+        
+        .recommended-badge { position: absolute; top: 1rem; right: 1rem; background: linear-gradient(135deg, #7c3aed, #c084fc); color: white; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+        
+        .book-title { font-size: 1.1rem; font-weight: 700; color: #e8e0ff; margin-bottom: 0.3rem; }
+        .book-author { color: #a78bca; font-size: 0.9rem; margin-bottom: 0.8rem; }
+        .book-genre { display: inline-block; background: #2d1b4e; color: #c084fc; padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.8rem; margin-bottom: 0.8rem; }
+        .stars { color: #fbbf24; font-size: 0.9rem; margin-bottom: 0.8rem; }
+        .book-summary { color: #c4b5d4; font-size: 0.85rem; line-height: 1.5; margin-bottom: 0.8rem; }
+        .book-reason { background: #2d1b4e; border-left: 3px solid #c084fc; padding: 0.6rem 0.8rem; border-radius: 0 8px 8px 0; font-size: 0.8rem; color: #a78bca; margin-bottom: 0.8rem; }
+        .card-actions { display: flex; justify-content: flex-end; }
+
+        /* Wishlist page */
+        .wishlist-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        .wishlist-header h2 { color: #c084fc; font-size: 1.5rem; }
+        .empty-wishlist { text-align: center; padding: 4rem; color: #6d5a80; }
+        .empty-wishlist div { font-size: 4rem; margin-bottom: 1rem; }
+
+        .wishlist-item { background: #1a0f2e; border: 1px solid #3d2b6e; border-radius: 16px; padding: 1.2rem 1.5rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; transition: all 0.3s; }
+        .wishlist-item:hover { border-color: #7c3aed; }
+        .wishlist-info { flex: 1; }
+        .wishlist-title { font-size: 1rem; font-weight: 700; color: #e8e0ff; margin-bottom: 0.2rem; }
+        .wishlist-author { color: #a78bca; font-size: 0.85rem; margin-bottom: 0.4rem; }
+        .wishlist-meta { display: flex; gap: 0.8rem; align-items: center; }
+        .wishlist-genre { background: #2d1b4e; color: #c084fc; padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.75rem; }
+        .wishlist-rating { color: #fbbf24; font-size: 0.8rem; }
+        .wishlist-date { color: #6d5a80; font-size: 0.75rem; }
+
+        input[type="file"] { display: none; }
+        .camera-section { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+
+        .wishlist-count { background: #f472b6; color: white; border-radius: 999px; padding: 0.1rem 0.5rem; font-size: 0.75rem; margin-left: 0.3rem; }
+    </style>
+</head>
+<body>
+    <header>
+        <div>
+            <h1>📚 Shelf Scanner</h1>
+            <p>AI-powered book discovery</p>
+        </div>
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="showPage('scanner')">🔍 Scanner</button>
+            <button class="nav-tab" onclick="showPage('wishlist')" id="wishlistTab">❤️ Wishlist <span class="wishlist-count" id="wishlistCount">0</span></button>
+        </div>
+    </header>
+
+    <!-- Scanner Page -->
+    <div class="page active" id="scannerPage">
+        <div class="main">
+            <div class="upload-section" onclick="document.getElementById('fileInput').click()">
+                <div class="upload-icon">📸</div>
+                <h2>Scan Your Bookshelf</h2>
+                <p>Upload a photo and AI will identify all your books!</p>
+                <div class="camera-section">
+                    <button class="btn btn-primary" onclick="event.stopPropagation(); document.getElementById('fileInput').click()">Upload Photo</button>
+                    <button class="btn btn-secondary" onclick="event.stopPropagation(); document.getElementById('cameraInput').click()">Use Camera</button>
+                </div>
+            </div>
+
+            <input type="file" id="fileInput" accept="image/*" onchange="handleImage(this)">
+            <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="handleImage(this)">
+
+            <img id="imagePreview" alt="Bookshelf preview">
+
+            <div class="scan-btn-container" id="scanBtnContainer" style="display:none">
+                <button class="btn btn-primary" onclick="scanShelf()" style="font-size:1.1rem; padding:1rem 3rem;">
+                    🔍 Scan Books with AI
+                </button>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>AI is scanning your bookshelf...</p>
+                <p style="color:#6d5a80; font-size:0.9rem; margin-top:0.5rem">Identifying books and generating recommendations</p>
+            </div>
+
+            <div class="results" id="results">
+                <div class="results-header">
+                    <h2>📖 Books Found</h2>
+                    <span class="badge" id="bookCount">0 books</span>
+                </div>
+                <div class="recommendation-box">
+                    <h3>✨ AI Recommendation</h3>
+                    <p id="overallRec"></p>
+                </div>
+                <div class="books-grid" id="booksGrid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Wishlist Page -->
+    <div class="page" id="wishlistPage">
+        <div class="main">
+            <div class="wishlist-header">
+                <h2>❤️ My Wishlist</h2>
+                <button class="btn btn-secondary" onclick="clearWishlist()">Clear All</button>
+            </div>
+            <div id="wishlistContent"></div>
+        </div>
+    </div>
+
+    <script>
+        let imageBase64 = null
+        let wishlist = JSON.parse(localStorage.getItem('bookWishlist') || '[]')
+
+        updateWishlistCount()
+
+        function showPage(page) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'))
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'))
+            document.getElementById(page + 'Page').classList.add('active')
+            event.target.classList.add('active')
+            if (page === 'wishlist') renderWishlist()
+        }
+
+        function handleImage(input) {
+            const file = input.files[0]
+            if (!file) return
+            const reader = new FileReader()
+            reader.onload = e => {
+                imageBase64 = e.target.result
+                const preview = document.getElementById('imagePreview')
+                preview.src = imageBase64
+                preview.style.display = 'block'
+                document.getElementById('scanBtnContainer').style.display = 'block'
+                document.getElementById('results').style.display = 'none'
+            }
+            reader.readAsDataURL(file)
+        }
+
+        async function scanShelf() {
+            if (!imageBase64) return
+            document.getElementById('loading').style.display = 'block'
+            document.getElementById('results').style.display = 'none'
+            document.getElementById('scanBtnContainer').style.display = 'none'
+
+            try {
+                const res = await fetch('/scan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: imageBase64 })
+                })
+                const data = await res.json()
+                if (data.error) { alert(data.error); return }
+                displayResults(data)
+            } catch (err) {
+                alert('Error scanning. Please try again.')
+            } finally {
+                document.getElementById('loading').style.display = 'none'
+                document.getElementById('scanBtnContainer').style.display = 'block'
+            }
+        }
+
+        function displayResults(data) {
+            document.getElementById('bookCount').textContent = `${data.total_found} books`
+            document.getElementById('overallRec').textContent = data.recommendation
+
+            const grid = document.getElementById('booksGrid')
+            grid.innerHTML = data.books.map(book => {
+                const inWishlist = wishlist.some(w => w.title === book.title)
+                return `
+                <div class="book-card ${book.recommended ? 'recommended' : ''}">
+                    ${book.recommended ? '<span class="recommended-badge">⭐ Recommended</span>' : ''}
+                    <div class="book-title">${book.title}</div>
+                    <div class="book-author">by ${book.author}</div>
+                    <span class="book-genre">${book.genre}</span>
+                    <div class="stars">${getStars(book.rating)} ${book.rating}/5</div>
+                    <div class="book-summary">${book.summary}</div>
+                    ${book.reason ? `<div class="book-reason">💡 ${book.reason}</div>` : ''}
+                    <div class="card-actions">
+                        <button class="btn-wishlist ${inWishlist ? 'added' : ''}" id="wish-${book.title.replace(/\s/g,'_')}" onclick="toggleWishlist(${JSON.stringify(book).replace(/"/g, '&quot;')}, this)">
+                            ${inWishlist ? '❤️ In Wishlist' : '🤍 Add to Wishlist'}
+                        </button>
+                    </div>
+                </div>`
+            }).join('')
+
+            document.getElementById('results').style.display = 'block'
+        }
+
+        function toggleWishlist(book, btn) {
+            const idx = wishlist.findIndex(w => w.title === book.title)
+            if (idx === -1) {
+                wishlist.push({ ...book, addedAt: new Date().toLocaleDateString() })
+                btn.textContent = '❤️ In Wishlist'
+                btn.classList.add('added')
+            } else {
+                wishlist.splice(idx, 1)
+                btn.textContent = '🤍 Add to Wishlist'
+                btn.classList.remove('added')
+            }
+            localStorage.setItem('bookWishlist', JSON.stringify(wishlist))
+            updateWishlistCount()
+        }
+
+        function updateWishlistCount() {
+            document.getElementById('wishlistCount').textContent = wishlist.length
+        }
+
+        function renderWishlist() {
+            const container = document.getElementById('wishlistContent')
+            if (wishlist.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-wishlist">
+                        <div>📚</div>
+                        <p>Your wishlist is empty!</p>
+                        <p style="font-size:0.9rem; margin-top:0.5rem">Scan a bookshelf and add books you want to read</p>
+                    </div>`
+                return
+            }
+            container.innerHTML = wishlist.map((book, idx) => `
+                <div class="wishlist-item">
+                    <div class="wishlist-info">
+                        <div class="wishlist-title">${book.title}</div>
+                        <div class="wishlist-author">by ${book.author}</div>
+                        <div class="wishlist-meta">
+                            <span class="wishlist-genre">${book.genre}</span>
+                            <span class="wishlist-rating">⭐ ${book.rating}/5</span>
+                            <span class="wishlist-date">Added ${book.addedAt}</span>
+                        </div>
+                    </div>
+                    <button class="btn-remove" onclick="removeFromWishlist(${idx})">Remove</button>
+                </div>
+            `).join('')
+        }
+
+        function removeFromWishlist(idx) {
+            wishlist.splice(idx, 1)
+            localStorage.setItem('bookWishlist', JSON.stringify(wishlist))
+            updateWishlistCount()
+            renderWishlist()
+        }
+
+        function clearWishlist() {
+            if (!confirm('Clear entire wishlist?')) return
+            wishlist = []
+            localStorage.setItem('bookWishlist', JSON.stringify(wishlist))
+            updateWishlistCount()
+            renderWishlist()
+        }
+
+        function getStars(rating) {
+            const full = Math.floor(rating)
+            const half = rating % 1 >= 0.5 ? 1 : 0
+            const empty = 5 - full - half
+            return '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(empty)
+        }
+    </script>
+</body>
+</html>
